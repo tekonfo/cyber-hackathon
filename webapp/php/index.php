@@ -299,17 +299,17 @@ function getPopularArticles()
     $query = <<<__SQL
 	SELECT
 	  article_id,
-	  count(user_id) as iineCnt
+	  count(article_id) as iineCnt
 	FROM
 	  iines
 	WHERE
-	  updated_at >= DATE_ADD(NOW(), INTERVAL -1 MONTH)
+	  updated_at between DATE_ADD(NOW(), INTERVAL -1 MONTH) and NOW()
 	GROUP BY
 	  article_id
 	ORDER BY
       iineCnt DESC,
       article_id DESC
-	LIMIT 5
+	LIMIT 5;;
 __SQL;
     $popularArticles = dbExecute($query)->fetchAll();
 
