@@ -427,26 +427,27 @@ __SQL;
     return "";
 }
 
-function sync_photo_to_redis()
+function sync_photo_to_redis($offset)
 {
-    $user_photos = dbExecute('SELECT * FROM user_photos')->fetch();
+    $query = "SELECT * FROM user_photos" . "  LIMIT 1000 OFFSET $offset; ";
+    $user_photos = dbExecute($query)->fetchAll();
 
     // Redisにsyncさせる
     $client = new Predis\Client();
 
-    $client->del('user_image');
-
     $body = "";
+
+    $decode = base64_decode("iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAA3klEQVR42u3SAQ0AAAgDIN8/9K3hJmQgnXZ4KwIIIIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACCCAAAIIIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAA3LNkJfxBbCdD2AAAAAElFTkSuQmCC");
 
     foreach($user_photos as $user_photo){
         if (!$user_photo) {
-            $body = base64_decode("iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAA3klEQVR42u3SAQ0AAAgDIN8/9K3hJmQgnXZ4KwIIIIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACCCAAAIIIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAA3LNkJfxBbCdD2AAAAAElFTkSuQmCC");
+            $body = $decode;
         } elseif ($user_photo['photo_binary']) {
             $body = $user_photo['photo_binary'];
         } else {
             $file_path= dirname(__FILE__) .'/../static/photo/'. $user_photo['photo_path'];
             if (!file_exists($file_path)) {
-                $body = base64_decode("iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAA3klEQVR42u3SAQ0AAAgDIN8/9K3hJmQgnXZ4KwIIIIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACCCAAAIIIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAA3LNkJfxBbCdD2AAAAAElFTkSuQmCC");
+                $body = $decode;
             } else {
                 $body = file_get_contents($file_path);
             }
@@ -532,29 +533,34 @@ $app->get('/photo/{member_id}', function (Request $request, Response $response) 
 
     $memberId = $request->getAttribute('member_id');
 
-    $user_images = $client->hgetall('user_image');
-    if (!key_exists($memberId, $user_images)){
-        sync_photo_to_redis();
+//    $user_images = $client->hgetall('user_image');
+//
+//    if (!key_exists($memberId, $user_images)){
+//        sync_photo_to_redis();
+//    }
+//
+//    $body = $client->hget('user_image', $memberId);
+
+    $user_photo = dbExecute('SELECT * FROM user_photos WHERE user_id = ?', [$memberId])->fetch();
+
+    $body = "";
+
+    if (!$user_photo) {
+        $body = base64_decode("iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAA3klEQVR42u3SAQ0AAAgDIN8/9K3hJmQgnXZ4KwIIIIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACCCAAAIIIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAA3LNkJfxBbCdD2AAAAAElFTkSuQmCC");
+    } elseif ($user_photo['photo_binary']) {
+        $body = $user_photo['photo_binary'];
+    } else {
+        $file_path= dirname(__FILE__) .'/../static/photo/'. $user_photo['photo_path'];
+        if (!file_exists($file_path)) {
+            $body = base64_decode("iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAA3klEQVR42u3SAQ0AAAgDIN8/9K3hJmQgnXZ4KwIIIIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACCCAAAIIIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAA3LNkJfxBbCdD2AAAAAElFTkSuQmCC");
+        } else {
+            $body = file_get_contents($file_path);
+        }
     }
 
-    $body = $client->hget('user_image', $memberId);
+//     $client->hset('user_image', $user_photo['user_id'], $body);
 
-//    $user_photo = dbExecute('SELECT * FROM user_photos WHERE user_id = ?', [$memberId])->fetch();
-//
-//    $body = "";
-//
-//    if (!$user_photo) {
-//        $body = base64_decode("iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAA3klEQVR42u3SAQ0AAAgDIN8/9K3hJmQgnXZ4KwIIIIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACCCAAAIIIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAA3LNkJfxBbCdD2AAAAAElFTkSuQmCC");
-//    } elseif ($user_photo['photo_binary']) {
-//        $body = $user_photo['photo_binary'];
-//    } else {
-//        $file_path= dirname(__FILE__) .'/../static/photo/'. $user_photo['photo_path'];
-//        if (!file_exists($file_path)) {
-//            $body = base64_decode("iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAA3klEQVR42u3SAQ0AAAgDIN8/9K3hJmQgnXZ4KwIIIIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACCCAAAIIIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAA3LNkJfxBbCdD2AAAAAElFTkSuQmCC");
-//        } else {
-//            $body = file_get_contents($file_path);
-//        }
-//    }
+//    $body = $client->hget('user_image', $user_photo['user_id']);
 
     $newResponse = $response->withHeader('Content-type', 'image/png');
     $newResponse->getBody()->write($body);
@@ -563,6 +569,8 @@ $app->get('/photo/{member_id}', function (Request $request, Response $response) 
 });
 
 $app->get('/', function (Request $request, Response $response) {
+
+
     $page = $request->getParam('page') ?? '1';
     if (!is_numeric($page)) {
         return $response->withStatus(400);
@@ -1052,6 +1060,13 @@ $app->get('/initialize', function (Request $request, Response $response) {
     dbExecute("DELETE FROM article_relate_tags WHERE article_id > 7101");
     $redis = getRedis();
     $redis->flushAll();
+//    $client = new Predis\Client();
+//    $client->del('user_image');
+//    sync_photo_to_redis(0);
+//    sync_photo_to_redis(1000);
+//    sync_photo_to_redis(2000);
+//    sync_photo_to_redis(3000);
+//    sync_photo_to_redis(4000);
     for ($i=1; $i<500; $i++) {
         setLogin($i);
     }

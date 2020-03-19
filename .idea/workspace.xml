@@ -1,7 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="cba47179-b388-4ab0-8424-008f98e780d7" name="Default Changelist" comment="" />
+    <list default="true" id="cba47179-b388-4ab0-8424-008f98e780d7" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/webapp/php/index.php" beforeDir="false" afterPath="$PROJECT_DIR$/webapp/php/index.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/webapp/php/nginx.php.conf" beforeDir="false" afterPath="$PROJECT_DIR$/webapp/php/nginx.php.conf" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/webapp/php/php-fpm.conf" beforeDir="false" afterPath="$PROJECT_DIR$/webapp/php/php-fpm.conf" afterDir="false" />
+    </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -17,6 +22,7 @@
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="ProjectId" id="1Z4f7OenNPzXUVqNuc1P4bKsfiU" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
   <component name="PropertiesComponent">
     <property name="WebServerToolWindowFactoryState" value="false" />
     <property name="WebServerToolWindowPanel.toolwindow.highlight.mappings" value="true" />
@@ -58,11 +64,25 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1584103119105</updated>
-      <workItem from="1584103123843" duration="5807000" />
+      <workItem from="1584103123843" duration="12441000" />
+      <workItem from="1584595066523" duration="623000" />
     </task>
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="1" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State>
+              <option name="COLUMN_ORDER" />
+            </State>
+          </value>
+        </entry>
+      </map>
+    </option>
   </component>
 </project>
