@@ -47,6 +47,11 @@ function getRedis()
 }
 
 
+//$app = new \Slim\App(
+//    ['settings' => [
+//        'displayErrorDetails' => true,
+//    ],]
+//);
 $app = new \Slim\App();
 $container = $app->getContainer();
 $container['view'] = function ($container) {
@@ -57,6 +62,7 @@ $container['view'] = function ($container) {
             $container['request']->getUri()
         )
     );
+
     return $view;
 };
 
@@ -226,18 +232,47 @@ function getArticleCount($authorId)
     return $cnt;
 }
 
+//$tagNames=[];
+//$query = "SELECT tag_id FROM article_relate_tags WHERE article_id = ? ORDER BY tag_id ASC";
+//$tagIds = dbExecute($query, [$articleId])->fetchAll();
+//foreach ($tagIds as $tagId) {
+//    $query = "SELECT tagname FROM tags WHERE id = ?";
+//    $ret = dbExecute($query, [$tagId['tag_id']])->fetch()['tagname'];
+//    if ($ret) {
+//        $tagNames[] = ['tagId' => $tagId['tag_id'], 'name' => $ret];
+//    }
+//}
+//return $tagNames;
+
+
 function getArticleTagnames($articleId)
 {
     $tagNames=[];
     $query = "SELECT tag_id FROM article_relate_tags WHERE article_id = ? ORDER BY tag_id ASC";
     $tagIds = dbExecute($query, [$articleId])->fetchAll();
-    foreach ($tagIds as $tagId) {
-        $query = "SELECT tagname FROM tags WHERE id = ?";
-        $ret = dbExecute($query, [$tagId['tag_id']])->fetch()['tagname'];
-        if ($ret) {
-            $tagNames[] = ['tagId' => $tagId['tag_id'], 'name' => $ret];
+
+    if (empty($tagIds)) {
+        return $tagNames;
+    }
+
+    $func = function($tag) {
+        return $tag['tag_id'];
+    };
+
+    $ids = array_map($func, $tagIds);
+    $in_values = implode(',', $ids);
+
+    # ここ修正
+    $query = "SELECT * FROM tags WHERE id IN (" . $in_values . ")";
+    $tags = dbExecute($query)->fetchAll();
+
+    foreach ($tags as $tag) {
+        $tag_name = $tag['tagname'];
+        if ($tag_name) {
+            $tagNames[] = ['tagId' => $tag['id'], 'name' => $tag_name];
         }
     }
+
     return $tagNames;
 }
 
@@ -602,6 +637,7 @@ $app->get('/', function (Request $request, Response $response) {
 __SQL;
     $latestArticleQuery  = $latestArticleQuery . "	LIMIT $pageSize OFFSET $offset; ";
     $latestArticles = dbExecute($latestArticleQuery)->fetchAll();
+
 
     foreach ($latestArticles as $key => $article) {
         $latestArticles[$key]['author'] = dbGetUser(getPDO(), $article['author_id']);
