@@ -7,7 +7,6 @@ if [ -f /var/log/mysql/mysql-slow.log ]; then
     mv /var/log/mysql/mysql-slow.log /var/log/mysql/mysql-slow.log.$(date +"%Y%m%d_%H%M%S")
 fi
 systemctl daemon-reload
-systemctl restart php-fpm
 systemctl restart nginx.service
 systemctl restart mysql.service
 sleep 10

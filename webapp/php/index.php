@@ -273,6 +273,10 @@ function getArticleTagnames($articleId)
         }
     }
 
+
+
+
+
     return $tagNames;
 }
 
@@ -786,18 +790,19 @@ $app->get('/members', function (Request $request, Response $response) {
     $offset = ($page - 1) * $pageSize;
 
     $membersQuery = <<<__SQL
-        SELECT
-         *
-        FROM
-         users
-        ORDER BY
-         id
+     select users.id as id, nick_name, email, users.passhash as passhash, articleCnt
+        from users 
+        LEFT JOIN (SELECT COUNT(*) as articleCnt, author_id as id FROM articles group by author_id) as art
+        ON art.id = users.id
+        order by users.id
 __SQL;
     $membersQuery  = $membersQuery . "  LIMIT $pageSize OFFSET $offset; ";
     $members = dbExecute($membersQuery)->fetchAll();
 
     foreach ($members as $key => $member) {
-        $members[$key]['articleCnt'] = getArticleCount($member['id']);
+        if (is_null($members[$key]['articleCnt'])){
+            $members[$key]['articleCnt'] = "0";
+        }
     }
 
     $locals = [
