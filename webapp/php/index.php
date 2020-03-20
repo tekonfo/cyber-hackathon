@@ -311,7 +311,9 @@ function InsArticle($dbh, $userId, $title, $tags, $articleBody)
     $stmt = $dbh->prepare($query);
     $stmt->execute([$userId, $title, $articleBody, getNow(), getNow()]);
 
-
+    $redis = getRedis();
+    $cnt = $redis->get('article_count');
+    $redis->set('article_count', $cnt+1);
 
     $stmt = $dbh->query("SELECT LAST_INSERT_ID() AS last_insert_id");
     $articleId = $stmt->fetch()['last_insert_id'];
@@ -629,8 +631,15 @@ $app->get('/', function (Request $request, Response $response) {
     }
     $page = (int)$page;
 
-    $stmt = dbExecute("SELECT COUNT(*) as cnt FROM articles");
-    $cnt = (int)($stmt->fetch()['cnt']);
+    $redis = getRedis();
+    if ($redis->exists("article_count")) {
+        $cnt = (int) $redis->get('article_count');
+    } else {
+        $stmt = dbExecute("SELECT COUNT(*) as cnt FROM articles");
+        $cnt = (int)($stmt->fetch()['cnt']);
+        $redis->set('article_count', $cnt);
+    }
+
     $pageSize = 20;
     $maxPage = ceil($cnt / $pageSize);
     if ($maxPage == 0) {
