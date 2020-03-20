@@ -47,12 +47,12 @@ function getRedis()
 }
 
 
-//$app = new \Slim\App(
-//    ['settings' => [
-//        'displayErrorDetails' => true,
-//    ],]
-//);
-$app = new \Slim\App();
+$app = new \Slim\App(
+    ['settings' => [
+        'displayErrorDetails' => true,
+    ],]
+);
+// $app = new \Slim\App();
 $container = $app->getContainer();
 $container['view'] = function ($container) {
     $view = new \Slim\Views\Twig(TWIG_TEMPLATE_FOLDER, []);
@@ -285,18 +285,14 @@ function getPopularArticles()
 {
     $query = <<<__SQL
 	SELECT
-	  article_id,
-	  count(article_id) as iineCnt
-	FROM
-	  iines
-	WHERE
-	  updated_at between DATE_ADD(NOW(), INTERVAL -1 MONTH) and NOW()
-	GROUP BY
-	  article_id
-	ORDER BY
+article_id,
+article_count as iineCnt
+  FROM
+	article_count as ac
+  	ORDER BY
       iineCnt DESC,
       article_id DESC
-	LIMIT 5;
+  limit 5;
 __SQL;
     $popularArticles = dbExecute($query)->fetchAll();
 
@@ -314,6 +310,8 @@ function InsArticle($dbh, $userId, $title, $tags, $articleBody)
     $query = "INSERT INTO articles ( author_id, title, description, updated_at, created_at ) VALUES ( ?, ?, ?, ?, ?);";
     $stmt = $dbh->prepare($query);
     $stmt->execute([$userId, $title, $articleBody, getNow(), getNow()]);
+
+
 
     $stmt = $dbh->query("SELECT LAST_INSERT_ID() AS last_insert_id");
     $articleId = $stmt->fetch()['last_insert_id'];
@@ -950,9 +948,13 @@ $app->post('/iine/{article_id}', function (Request $request, Response $response)
     if ($sign === 'plus') {
         $query = "INSERT INTO iines (article_id, user_id) VALUES( ?, ? );";
         dbExecute($query, [$articleId,$userId]);
+        $query = "INSERT INTO article_count (article_count, article_id) VALUES (1, ?) ON DUPLICATE KEY UPDATE article_count = article_count + 1;";
+        dbExecute($query, [$articleId]);
     } else {
         $query = "DELETE FROM iines WHERE article_id = ? AND user_id = ?";
         dbExecute($query, [$articleId,$userId]);
+        $query = "UPDATE article_count SET article_count = article_count - 1 WHERE article_id = ?;";
+        dbExecute($query, [$articleId]);
     }
     $cnt = dbExecute("SELECT COUNT(id) as cnt FROM iines WHERE article_id = ?", [$articleId])->fetch()['cnt'];
     return $cnt;
@@ -1134,6 +1136,31 @@ $app->post('/profileupdate/{ user_id }', function (Request $request, Response $r
     return $response->withRedirect('/member/' . $userId, 303);
 });
 
+
+function register_article_count()
+{
+    $query = <<<__SQL
+	SELECT
+      article_id,
+      count(article_id) as iineCnt
+      FROM
+      iines
+      WHERE
+      updated_at between DATE_ADD(NOW(), INTERVAL -1 MONTH) and NOW()
+      GROUP BY
+      article_id;
+__SQL;
+    $articles = dbExecute($query)->fetchAll();
+    foreach ($articles as $article){
+
+        $dbh = getPDO();
+        $stmt = $dbh->prepare(
+            "insert into article_count (article_id, article_count) values (?,?);"
+        );
+        $stmt->execute([$article['article_id'], $article['iineCnt']]);
+    }
+}
+
 $app->get('/initialize', function (Request $request, Response $response) {
     dbExecute("DELETE FROM users WHERE id > 5000");
     dbExecute("DELETE FROM salts WHERE user_id > 5000");
@@ -1141,7 +1168,9 @@ $app->get('/initialize', function (Request $request, Response $response) {
     dbExecute("DELETE FROM tags WHERE id > 999");
     dbExecute("DELETE FROM iines WHERE id > 50000");
     dbExecute("DELETE FROM articles WHERE id > 7101");
+    dbExecute("DELETE FROM article_count");
     dbExecute("DELETE FROM article_relate_tags WHERE article_id > 7101");
+    register_article_count();
     $redis = getRedis();
     $redis->flushAll();
     for ($i=1; $i<500; $i++) {
