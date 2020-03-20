@@ -73,8 +73,10 @@ function getNow()
 
 function dbGetUser($dbh, $userId)
 {
+
     $stmt = $dbh->prepare("SELECT * FROM users WHERE id = ?");
     $stmt->execute([$userId]);
+
     return $stmt->fetch();
 }
 
@@ -294,7 +296,7 @@ function getPopularArticles()
 	ORDER BY
       iineCnt DESC,
       article_id DESC
-	LIMIT 5;;
+	LIMIT 5;
 __SQL;
     $popularArticles = dbExecute($query)->fetchAll();
 
@@ -853,16 +855,37 @@ $app->get('/member/{member_id}', function (Request $request, Response $response)
 
     $offset = ($page - 1) * $pageSize;
 
+//    SELECT
+//    *
+//    FROM
+//          articles
+//         WHERE
+//          author_id = ?
+//         ORDER BY
+//              updated_at DESC,
+//          id DESC
+
+
+//    SELECT * FROM
+//    (SELECT articles.*, COUNT(iines.id) AS iineCnt
+//	FROM  articles LEFT JOIN iines ON
+//	iines.article_id = articles.id
+//	GROUP BY articles.id)
+//    as articles
+//    where articles.author_id = ?
+//    ORDER BY
+//    updated_at DESC,
+//    id DESC;
     $memberArticleQuery = <<<__SQL
-        SELECT
-         *
-        FROM
-         articles
-        WHERE
-         author_id = ?
-        ORDER BY
-         updated_at DESC,
-         id DESC
+                SELECT
+    *
+    FROM
+          articles
+         WHERE
+          author_id = ?
+         ORDER BY
+              updated_at DESC,
+          id DESC
 __SQL;
     $memberArticleQuery  = $memberArticleQuery . "  LIMIT $pageSize OFFSET $offset; ";
     $memberArticles = dbExecute($memberArticleQuery, [$memberId])->fetchAll();
@@ -875,10 +898,12 @@ __SQL;
     // "SELECT COUNT(`id`) as cnt FROM iines WHERE article_id = ? "
     // "SELECT tag_id FROM article_relate_tags WHERE article_id = ? ORDER BY tag_id ASC";
     foreach ($memberArticles as $key => $article) {
-        $memberArticles[$key]['author'] = dbGetUser(getPDO(), $article['author_id']);
+        $memberArticles[$key]['author'] = $member;
         $memberArticles[$key]['iineCnt'] = getIineCount($article['id']);
+//        $memberArticles[$key]['iineCnt'] = $article['cnt'];
         $memberArticles[$key]['tagNames'] = getArticleTagnames($article['id']);
         $memberArticles[$key]['updateString'] = deltaTime($article['updated_at']);
+
     }
 
     $locals = [
