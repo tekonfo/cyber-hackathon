@@ -392,27 +392,52 @@ function UpdArticle($dbh, $userId, $articleId, $title, $tags, $articleBody)
         }
     }
 }
+
+//if ($photoBinary) {
+//    $photoPath = register_image($userId, $photoBinary);
+//
+//    $query =<<<__SQL
+//            INSERT INTO
+//              user_photos
+//              (
+//                user_id,
+//                photo_binary,
+//                updated_at
+//              )
+//            VALUES
+//              ( ?, ?, ? )
+//            ON DUPLICATE KEY
+//            UPDATE
+//              photo_binary = ?,
+//              updated_at = ?;
+//__SQL;
+//    $stmt = $dbh->prepare($query);
+//    $stmt->execute([$userId, $photoBinary, getNow(), $photoBinary, getNow()]);
+//} elseif ($photoPath) {
+//    $query =<<<__SQL
+//            INSERT INTO
+//              user_photos
+//              (
+//                user_id,
+//                photo_path,
+//                updated_at
+//              )
+//            VALUES
+//              ( ?, ?, ? )
+//            ON DUPLICATE KEY
+//            UPDATE
+//              photo_path = ?,
+//              updated_at = ?;
+//__SQL;
+
+
 function insAndUpdUserPhoto($dbh, $userId, $photoPath, $photoBinary)
 {
-    if ($photoBinary) {
-        $query =<<<__SQL
-            INSERT INTO 
-              user_photos 
-              (
-                user_id, 
-                photo_binary, 
-                updated_at
-              ) 
-            VALUES
-              ( ?, ?, ? )
-            ON DUPLICATE KEY
-            UPDATE
-              photo_binary = ?,
-              updated_at = ?;
-__SQL;
-        $stmt = $dbh->prepare($query);
-        $stmt->execute([$userId, $photoBinary, getNow(), $photoBinary, getNow()]);
-    } elseif ($photoPath) {
+    $redis = getRedis();
+    $redis->set('user_' . $userId, $photoBinary);
+
+    $photoPath = register_image($userId, $photoBinary);
+
         $query =<<<__SQL
             INSERT INTO 
               user_photos 
@@ -428,9 +453,9 @@ __SQL;
               photo_path = ?,
               updated_at = ?;
 __SQL;
-        $stmt = $dbh->prepare($query);
-        $stmt->execute([$userId, $photoPath, getNow(), $photoPath, getNow()]);
-    }
+    $stmt = $dbh->prepare($query);
+    $stmt->execute([$userId, $photoPath, getNow(), $photoPath, getNow()]);
+
 }
 
 function updatePassword($dbh, $userId, $currentPassword, $newPassword)
@@ -466,36 +491,44 @@ __SQL;
     return "";
 }
 
-function sync_photo_to_redis($offset)
-{
-    $query = "SELECT * FROM user_photos" . "  LIMIT 1000 OFFSET $offset; ";
-    $user_photos = dbExecute($query)->fetchAll();
+//function sync_photo_to_redis($offset)
+//{
+//    $query = "SELECT * FROM user_photos" . "  LIMIT 1000 OFFSET $offset; ";
+//    $user_photos = dbExecute($query)->fetchAll();
+//
+//    // Redisにsyncさせる
+////    $client = new Predis\Client();
+//
+//    $body = "";
+//
+//    $decode = base64_decode("iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAA3klEQVR42u3SAQ0AAAgDIN8/9K3hJmQgnXZ4KwIIIIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACCCAAAIIIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAA3LNkJfxBbCdD2AAAAAElFTkSuQmCC");
+//
+//    foreach($user_photos as $user_photo){
+////        if (!$user_photo) {
+////            $body = $decode;
+////        } elseif ($user_photo['photo_binary']) {
+////            $body = $user_photo['photo_binary'];
+////        } else {
+////            $file_path= dirname(__FILE__) .'/../static/photo/'. $user_photo['photo_path'];
+////            if (!file_exists($file_path)) {
+////                $body = $decode;
+////            } else {
+////                $body = file_get_contents($file_path);
+////            }
+////        }
+//
 
-    // Redisにsyncさせる
-    $client = new Predis\Client();
-
-    $body = "";
-
-    $decode = base64_decode("iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAA3klEQVR42u3SAQ0AAAgDIN8/9K3hJmQgnXZ4KwIIIIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACCCAAAIIIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAA3LNkJfxBbCdD2AAAAAElFTkSuQmCC");
-
-    foreach($user_photos as $user_photo){
-        if (!$user_photo) {
-            $body = $decode;
-        } elseif ($user_photo['photo_binary']) {
-            $body = $user_photo['photo_binary'];
-        } else {
-            $file_path= dirname(__FILE__) .'/../static/photo/'. $user_photo['photo_path'];
-            if (!file_exists($file_path)) {
-                $body = $decode;
-            } else {
-                $body = file_get_contents($file_path);
-            }
-        }
-
-        // ハッシュを追加します
-        $client->hset('user_image', $user_photo['user_id'], $body);
-    }
-}
+//
+////    $body = $client->hget('user_image', $user_photo['user_id']);
+//
+//        $file_path= dirname(__FILE__) .'/../static/photo/'. $user_photo['photo_path'];
+//        if (!file_exists($file_path)) {
+//            $body = $decode;
+//        } else {
+//            $body = file_get_contents($file_path);
+//        }
+//    }
+//}
 
 function updateNickName($dbh, $userId, $nickName)
 {
@@ -567,45 +600,40 @@ $app->get('/logout', function (Request $request, Response $response) {
     return $response->withRedirect('/', 303);
 });
 
-$app->get('/photo/{member_id}', function (Request $request, Response $response) {
-    $client = new Predis\Client();
+function register_image($id, $binary){
+    $path = '/var/www/html/webapp/static/photo/';
+    $png_name = $id . '.png';
+    file_put_contents($path . $png_name, $binary);
+    return $png_name;
+};
 
-    $memberId = $request->getAttribute('member_id');
 
-//    $user_images = $client->hgetall('user_image');
+//$app->get('/photo/{member_id}', function (Request $request, Response $response) {
+//    $redis = getRedis();
+//    $memberId = $request->getAttribute('member_id');
+//    $body = "";
 //
-//    if (!key_exists($memberId, $user_images)){
-//        sync_photo_to_redis();
+//    if (preg_match('/^[0-9]+.png$/', $memberId)) {
+//        $memberId = str_replace('.png', '', $memberId);
 //    }
 //
-//    $body = $client->hget('user_image', $memberId);
-
-    $user_photo = dbExecute('SELECT * FROM user_photos WHERE user_id = ?', [$memberId])->fetch();
-
-    $body = "";
-
-    if (!$user_photo) {
-        $body = base64_decode("iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAA3klEQVR42u3SAQ0AAAgDIN8/9K3hJmQgnXZ4KwIIIIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACCCAAAIIIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAA3LNkJfxBbCdD2AAAAAElFTkSuQmCC");
-    } elseif ($user_photo['photo_binary']) {
-        $body = $user_photo['photo_binary'];
-    } else {
-        $file_path= dirname(__FILE__) .'/../static/photo/'. $user_photo['photo_path'];
-        if (!file_exists($file_path)) {
-            $body = base64_decode("iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAA3klEQVR42u3SAQ0AAAgDIN8/9K3hJmQgnXZ4KwIIIIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACCCAAAIIIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAA3LNkJfxBbCdD2AAAAAElFTkSuQmCC");
-        } else {
-            $body = file_get_contents($file_path);
-        }
-    }
-
-//     $client->hset('user_image', $user_photo['user_id'], $body);
-
-//    $body = $client->hget('user_image', $user_photo['user_id']);
-
-    $newResponse = $response->withHeader('Content-type', 'image/png');
-    $newResponse->getBody()->write($body);
-
-    return $newResponse;
-});
+//    $file_path= dirname(__FILE__) .'/../static/photo/'. $memberId . '.png';
+//
+////    if ($redis->exists("user_" . $memberId)) {
+////        $body = $redis->get('user_' . $memberId);
+////    } else
+//
+//    if (!file_exists($file_path)) {
+//        $body = base64_decode("iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAA3klEQVR42u3SAQ0AAAgDIN8/9K3hJmQgnXZ4KwIIIIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACCCAAAIIIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAACIAA3LNkJfxBbCdD2AAAAAElFTkSuQmCC");
+//    } else {
+//        $body = file_get_contents($file_path);
+//    }
+//
+//    $newResponse = $response->withHeader('Content-type', 'image/png');
+//    $newResponse->getBody()->write($body);
+//
+//    return $newResponse;
+//});
 
 $app->get('/', function (Request $request, Response $response) {
 
@@ -1101,13 +1129,6 @@ $app->get('/initialize', function (Request $request, Response $response) {
     dbExecute("DELETE FROM article_relate_tags WHERE article_id > 7101");
     $redis = getRedis();
     $redis->flushAll();
-//    $client = new Predis\Client();
-//    $client->del('user_image');
-//    sync_photo_to_redis(0);
-//    sync_photo_to_redis(1000);
-//    sync_photo_to_redis(2000);
-//    sync_photo_to_redis(3000);
-//    sync_photo_to_redis(4000);
     for ($i=1; $i<500; $i++) {
         setLogin($i);
     }
