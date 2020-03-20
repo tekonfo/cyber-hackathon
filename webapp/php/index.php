@@ -248,23 +248,12 @@ function getArticleCount($authorId)
 function getArticleTagnames($articleId)
 {
     $tagNames=[];
-    $query = "SELECT tag_id FROM article_relate_tags WHERE article_id = ? ORDER BY tag_id ASC";
-    $tagIds = dbExecute($query, [$articleId])->fetchAll();
+    $query = "select * from tags join (SELECT tag_id FROM article_relate_tags WHERE article_id = ?) as a on tags.id = a.tag_id";
+    $tags = dbExecute($query, [$articleId])->fetchAll();
 
-    if (empty($tagIds)) {
+    if (empty($tags)) {
         return $tagNames;
     }
-
-    $func = function($tag) {
-        return $tag['tag_id'];
-    };
-
-    $ids = array_map($func, $tagIds);
-    $in_values = implode(',', $ids);
-
-    # ここ修正
-    $query = "SELECT * FROM tags WHERE id IN (" . $in_values . ")";
-    $tags = dbExecute($query)->fetchAll();
 
     foreach ($tags as $tag) {
         $tag_name = $tag['tagname'];
@@ -272,10 +261,6 @@ function getArticleTagnames($articleId)
             $tagNames[] = ['tagId' => $tag['id'], 'name' => $tag_name];
         }
     }
-
-
-
-
 
     return $tagNames;
 }
@@ -776,6 +761,9 @@ __SQL;
         return $response->withStatus(404);
     }
 
+
+    // "SELECT COUNT(`id`) as cnt FROM iines WHERE article_id = ? ";
+
     foreach ($tagArticles as $key => $article) {
         $tagArticle = getArticle($article['article_id']);
         $tagArticles[$key]['author'] = dbGetUser(getPDO(), $article['article_id']);
@@ -884,6 +872,8 @@ __SQL;
         return $response->withStatus(404);
     }
 
+    // "SELECT COUNT(`id`) as cnt FROM iines WHERE article_id = ? "
+    // "SELECT tag_id FROM article_relate_tags WHERE article_id = ? ORDER BY tag_id ASC";
     foreach ($memberArticles as $key => $article) {
         $memberArticles[$key]['author'] = dbGetUser(getPDO(), $article['author_id']);
         $memberArticles[$key]['iineCnt'] = getIineCount($article['id']);
@@ -893,7 +883,7 @@ __SQL;
 
     $locals = [
         'user' => currentUser($request, $response),
-        'author' => dbGetUser(getPDO(), $memberId),
+        'author' => $member,
         'articles' => $memberArticles,
         'page' => $page,
         'max_page' => $maxPage,
